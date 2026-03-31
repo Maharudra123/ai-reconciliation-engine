@@ -10,14 +10,22 @@ import {
   AlertTriangle,
   CheckCircle2,
   Filter,
+  PieChart as PieIcon,
 } from "lucide-react";
+// NEW: Import Recharts components
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip as ChartTooltip,
+  Legend,
+} from "recharts";
 
 export default function App() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // NEW: State for our active filter
   const [activeFilter, setActiveFilter] = useState("All");
 
   const loadData = async () => {
@@ -46,7 +54,6 @@ export default function App() {
     }).format(amount);
   };
 
-  // Helper for clean badge styling
   const getBadgeStyle = (type) => {
     if (type === "Matched")
       return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
@@ -61,7 +68,6 @@ export default function App() {
     return "bg-gray-500/10 text-gray-400 border-gray-500/20";
   };
 
-  // NEW: Flatten all backend data into one unified array for the table
   const getUnifiedTableData = () => {
     if (!report) return [];
     const data = [];
@@ -112,7 +118,6 @@ export default function App() {
 
   const tableData = getUnifiedTableData();
 
-  // NEW: Filter logic
   const filteredData = tableData.filter((row) => {
     if (activeFilter === "All") return true;
     if (activeFilter === "Anomalies") return row.type !== "Matched";
@@ -128,6 +133,31 @@ export default function App() {
     "Duplicate Entry",
     "Orphaned Refund",
   ];
+
+  // NEW: Process data dynamically for the Donut Chart, matching our Tailwind colors
+  const chartData = [
+    { name: "Matched", value: report?.matched?.length || 0, color: "#10b981" }, // Emerald
+    {
+      name: "Rounding Error",
+      value: report?.roundingErrors?.length || 0,
+      color: "#eab308",
+    }, // Yellow
+    {
+      name: "Timing Gap",
+      value: report?.timingGaps?.length || 0,
+      color: "#3b82f6",
+    }, // Blue
+    {
+      name: "Duplicate",
+      value: report?.duplicates?.length || 0,
+      color: "#ef4444",
+    }, // Red
+    {
+      name: "Orphaned",
+      value: report?.orphanedRefunds?.length || 0,
+      color: "#a855f7",
+    }, // Purple
+  ].filter((item) => item.value > 0); // Only render slices that actually have data
 
   if (loading)
     return (
@@ -213,27 +243,71 @@ export default function App() {
         </div>
       </div>
 
-      {/* Virtual CFO AI Panel */}
-      <div className="bg-indigo-950/20 border border-indigo-500/30 p-8 rounded-2xl mb-10 relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-indigo-500/20 rounded-lg">
-            <Bot className="w-6 h-6 text-indigo-400" />
+      {/* NEW: Middle Section Grid (Chart + AI Panel) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        {/* Donut Chart Component */}
+        <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-2">
+            <PieIcon className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-lg font-bold text-white">
+              Reconciliation Health
+            </h2>
           </div>
-          <h2 className="text-xl font-bold text-white">
-            Smart AI CFO Insights
-          </h2>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  innerRadius={65}
+                  outerRadius={85}
+                  paddingAngle={5}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <ChartTooltip
+                  contentStyle={{
+                    backgroundColor: "#1f2937",
+                    border: "1px solid #374151",
+                    borderRadius: "0.5rem",
+                    color: "#f3f4f6",
+                  }}
+                  itemStyle={{ color: "#e5e7eb" }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  wrapperStyle={{ color: "#9ca3af", fontSize: "12px" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="space-y-4 text-indigo-100/80 leading-relaxed">
-          {report.aiInsights.split("\n\n").map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
+
+        {/* Virtual CFO AI Panel (Now spans 2 columns next to the chart) */}
+        <div className="lg:col-span-2 bg-indigo-950/20 border border-indigo-500/30 p-8 rounded-2xl relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl"></div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-indigo-500/20 rounded-lg">
+              <Bot className="w-6 h-6 text-indigo-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white">
+              Smart AI CFO Insights
+            </h2>
+          </div>
+          <div className="space-y-4 text-indigo-100/80 leading-relaxed text-sm">
+            {report.aiInsights.split("\n\n").map((paragraph, index) => (
+              <p key={index}>{paragraph}</p>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* FILTERABLE DATA TABLE */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden mb-10">
-        {/* Table Header & Filter Bar */}
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-2 mb-6">
             <Filter className="w-5 h-5 text-gray-400" />
@@ -258,7 +332,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Table Body */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-950/50 text-gray-400">
